@@ -4,7 +4,7 @@ import dev.denismasterherobrine.ultimatespawn.UltimateSpawn;
 import dev.denismasterherobrine.ultimatespawn.configuration.Configuration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
-import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -13,10 +13,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.util.ITeleporter;
-import org.jline.utils.Log;
 
 import java.util.function.Function;
-import java.util.logging.Logger;
 
 import static dev.denismasterherobrine.ultimatespawn.utils.ValidSpotChecks.validPlayerSpawnLocation;
 
@@ -37,7 +35,7 @@ public class SpawnHandler {
 
             boolean fatal = false;
             if (world.getServer().getLevel(destination) == null) {
-                player.sendMessage(new TextComponent("[§3Ultimate§bSpawn§f] §4FATAL ERROR: The dimension " + splitted[0] + ":" + splitted[1] + " does not exist in this modpack instance!"), player.getUUID());
+                player.sendSystemMessage(Component.literal("[§3Ultimate§bSpawn§f] §4FATAL ERROR: The dimension " + splitted[0] + ":" + splitted[1] + " does not exist in this modpack instance!"));
                 fatal = true;
             }
 
@@ -109,7 +107,7 @@ public class SpawnHandler {
                         if (badConfig) {
                             // We couldn't find anything in the range defined in the config.
                             if (safePos != null) {
-                                player.sendMessage(new TextComponent("[§3Ultimate§bSpawn§f] §cERROR: Upper and lower bound of Y coordinate form an empty range! The player has been placed in related to initial spawn coordinates in Overworld."), player.getUUID());
+                                player.sendSystemMessage(Component.literal("[§3Ultimate§bSpawn§f] §cERROR: Upper and lower bound of Y coordinate form an empty range! The player has been placed in related to initial spawn coordinates in Overworld."));
                                 break;
                             }
                         } else {
