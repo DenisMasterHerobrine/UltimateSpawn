@@ -11,6 +11,8 @@ import java.util.ArrayList;
 
 public class ValidSpotChecks {
     public static BlockPos validPlayerSpawnLocation(ServerLevel world, BlockPos position, int maximumRange) {
+        ArrayList<BlockPos> restricted = new ArrayList<>();
+
         // Try to find 2 non-solid spaces around it that the player can spawn at
         int radius;
         int outerRadius;
