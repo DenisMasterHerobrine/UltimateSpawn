@@ -3,7 +3,7 @@ package dev.denismasterherobrine.ultimatespawn.utils;
 import dev.denismasterherobrine.ultimatespawn.UltimateSpawn;
 import dev.denismasterherobrine.ultimatespawn.configuration.Configuration;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -31,7 +31,7 @@ public class SpawnHandler {
         boolean strictCoordinatesMode = Configuration.strictCoordinatesModeEntry.get();
 
         if (splitted.length == 2) {
-            ResourceKey<Level> destination = ResourceKey.create(Registry.DIMENSION_REGISTRY, new ResourceLocation(splitted[0], splitted[1]));
+            ResourceKey<Level> destination = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(splitted[0], splitted[1]));
 
             boolean fatal = false;
             if (world.getServer().getLevel(destination) == null) {
