@@ -62,7 +62,6 @@ public class SpawnHandler {
                                     safePos = location;
                                     break;
                                 }
-
                                 it++;
                             }
                         }

@@ -45,13 +45,22 @@ public class SpawnHandler {
 
                     if (!strictCoordinatesMode) {
                         BlockPos safePos = null;
-
                         int range = 32;
+                        int it = 0;
                         BlockPos searchLocation = new BlockPos(x, y, z);
 
                         while (safePos == null) {
                             safePos = validPlayerSpawnLocation(player.level.getServer().getLevel(destination), searchLocation, range);
                             range = range + 16; // If null, adjust the range and search again.
+                            if (safePos == null) {
+                                if (it > 3) {
+                                    UltimateSpawn.LOGGER.info("[UltimateSpawn] WARNING: No safe spots found in specified area in a large area! We're going to shift our safe position and search in the spawn chunks.");
+                                    safePos = location;
+                                    break;
+                                }
+
+                                it++;
+                            }
                         }
 
                         BlockPos finalSafePos = safePos;
