@@ -10,7 +10,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.util.ITeleporter;
 
@@ -19,11 +18,11 @@ import java.util.function.Function;
 import static dev.denismasterherobrine.ultimatespawn.utils.ValidSpotChecks.validPlayerSpawnLocation;
 
 public class SpawnHandler {
-    public static void handleSpawn(Player player) {
-        if (player.getLevel().getServer() == null) return;
+    public static void handleSpawn(ServerPlayer player) {
+        if (player.getServer() == null) return;
 
         BlockPos location = player.blockPosition();
-        ServerLevel world = (ServerLevel) player.getLevel();
+        ServerLevel world = (ServerLevel) player.level();
 
         String[] splitted = Configuration.dimensionEntry.get().split(":");
 
