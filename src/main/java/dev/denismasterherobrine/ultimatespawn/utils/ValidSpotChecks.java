@@ -1,19 +1,19 @@
 package dev.denismasterherobrine.ultimatespawn.utils;
 
+import net.minecraft.block.material.Material;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
 // Code by TelephaticGhunt, utility method to find valid player spawn location.
 // Original: https://github.com/TelepathicGrunt/Bumblezone/blob/250ca9b8e1072bafeb616dc027208ae910cd1cef/src/main/java/com/telepathicgrunt/the_bumblezone/entities/EntityTeleportationBackend.java#L334
-// Ported to 1.18.2+
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 
 public class ValidSpotChecks {
-    public static BlockPos validPlayerSpawnLocation(ServerLevel world, BlockPos position, int maximumRange) {
+    public static BlockPos validPlayerSpawnLocation(World world, BlockPos position, int maximumRange) {
         // Try to find 2 non-solid spaces around it that the player can spawn at
         int radius;
         int outerRadius;
         int distanceSq;
-        BlockPos.MutableBlockPos currentPos = new BlockPos.MutableBlockPos(position.getX(), position.getY(), position.getZ());
+        BlockPos.Mutable currentPos = new BlockPos.Mutable(position.getX(), position.getY(), position.getZ());
 
         // Checks for 2 non-solid blocks with solid block below feet
         // Checks outward from center position in both x, y, and z.
@@ -34,11 +34,9 @@ public class ValidSpotChecks {
                         distanceSq = x2 * x2 + z2 * z2 + y2 * y2;
                         if (distanceSq >= radius && distanceSq < outerRadius) {
                             currentPos.set(position.offset(x2, y2, z2));
-
-                            if (world.getBlockState(currentPos.below()).canOcclude()
-                                    && world.getBlockState(currentPos).isAir()
-                                    && world.getBlockState(currentPos.above()).isAir()) {
-
+                            if (world.getBlockState(currentPos.below()).canOcclude() &&
+                                    world.getBlockState(currentPos).getMaterial() == Material.AIR &&
+                                    world.getBlockState(currentPos.above()).getMaterial() == Material.AIR) {
                                 // Valid space for player is found
                                 return currentPos;
                             }

@@ -1,7 +1,7 @@
 package dev.denismasterherobrine.ultimatespawn.utils;
 
 import dev.denismasterherobrine.ultimatespawn.UltimateSpawn;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.stats.Stats;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -12,14 +12,12 @@ public class SpawnEvent {
     @SubscribeEvent
     public static void onPlayerFirstJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() != null) {
-            ServerPlayer player = (ServerPlayer) event.getEntity();
+            ServerPlayerEntity player = (ServerPlayerEntity) event.getPlayer();
 
-            if (player != null) {
-                int statCounter = player.getStats().getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME));
+            int statCounter = player.getStats().getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME));
 
-                if (statCounter == 0) {
-                    SpawnHandler.handleSpawn(player);
-                }
+            if (statCounter == 0) {
+                SpawnHandler.handleSpawn(player);
             }
         }
     }
@@ -27,12 +25,10 @@ public class SpawnEvent {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() != null) {
-            ServerPlayer player = (ServerPlayer) event.getEntity();
+            ServerPlayerEntity player = (ServerPlayerEntity) event.getPlayer();
 
-            if (player != null) {
-                if (player.getRespawnPosition() == null) {
-                    SpawnHandler.handleSpawn(player);
-                }
+            if (player.getRespawnPosition() == null) {
+                SpawnHandler.handleSpawn(player);
             }
         }
     }

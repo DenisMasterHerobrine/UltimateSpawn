@@ -2,16 +2,15 @@ package dev.denismasterherobrine.ultimatespawn.utils;
 
 import dev.denismasterherobrine.ultimatespawn.UltimateSpawn;
 import dev.denismasterherobrine.ultimatespawn.configuration.Configuration;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.util.RegistryKey;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.util.ITeleporter;
 
 import java.util.function.Function;
@@ -19,11 +18,10 @@ import java.util.function.Function;
 import static dev.denismasterherobrine.ultimatespawn.utils.ValidSpotChecks.validPlayerSpawnLocation;
 
 public class SpawnHandler {
-    public static void handleSpawn(Player player) {
-        if (player.getLevel().getServer() == null) return;
+    public static void handleSpawn(PlayerEntity player) {
+        if (player.level.getServer() == null) return;
 
         BlockPos location = player.blockPosition();
-        ServerLevel world = (ServerLevel) player.getLevel();
 
         String[] splitted = Configuration.dimensionEntry.get().split(":");
 
@@ -31,11 +29,11 @@ public class SpawnHandler {
         boolean strictCoordinatesMode = Configuration.strictCoordinatesModeEntry.get();
 
         if (splitted.length == 2) {
-            ResourceKey<Level> destination = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(splitted[0], splitted[1]));
+            RegistryKey<World> destination = RegistryKey.create(new ResourceLocation("minecraft", "dimension"), new ResourceLocation(splitted[0], splitted[1]));
 
             boolean fatal = false;
-            if (world.getServer().getLevel(destination) == null) {
-                player.sendSystemMessage(Component.literal("[§3Ultimate§bSpawn§f] §4FATAL ERROR: The dimension " + splitted[0] + ":" + splitted[1] + " does not exist in this modpack instance!"));
+            if (player.level.getServer().getLevel(destination) == null) {
+                player.sendMessage(new StringTextComponent("[§3Ultimate§bSpawn§f] §4FATAL ERROR: The dimension " + splitted[0] + ":" + splitted[1] + " does not exist in this modpack instance!"), player.getUUID());
                 fatal = true;
             }
 
@@ -52,7 +50,7 @@ public class SpawnHandler {
                         BlockPos searchLocation = new BlockPos(x, y, z);
 
                         while (safePos == null) {
-                            safePos = validPlayerSpawnLocation(world.getServer().getLevel(destination), searchLocation, range);
+                            safePos = validPlayerSpawnLocation(player.level.getServer().getLevel(destination), searchLocation, range);
                             range = range + 16; // If null, adjust the range and search again.
                             if (safePos == null) {
                                 if (it > 3) {
@@ -66,37 +64,40 @@ public class SpawnHandler {
                         }
 
                         BlockPos finalSafePos = safePos;
-                        player.changeDimension(world.getServer().getLevel(destination), new ITeleporter() {
+                        player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
                             @Override
-                            public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
+                            public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
                                 entity = repositionEntity.apply(false);
                                 entity.teleportTo(finalSafePos.getX(), finalSafePos.getY(), finalSafePos.getZ());
                                 return entity;
                             }
 
                             @Override
-                            public boolean playTeleportSound(ServerPlayer player, ServerLevel sourceWorld, ServerLevel destWorld) {
+                            public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
+                            {
                                 return false;
                             }
                         });
                     } else {
                         BlockPos finalPos = new BlockPos(x, y, z);
-                        player.changeDimension(world.getServer().getLevel(destination), new ITeleporter() {
+                        player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
                             @Override
-                            public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
+                            public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
                                 entity = repositionEntity.apply(false);
                                 entity.teleportTo(finalPos.getX(), finalPos.getY(), finalPos.getZ());
                                 return entity;
                             }
 
                             @Override
-                            public boolean playTeleportSound(ServerPlayer player, ServerLevel sourceWorld, ServerLevel destWorld) {
+                            public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
+                            {
                                 return false;
                             }
                         });
                     }
                 }
-            } else {
+            }
+            else {
                 if (!fatal) {
                     BlockPos safePos = null;
 
@@ -112,12 +113,13 @@ public class SpawnHandler {
                     int range = 32;
                     int it = 0;
                     while (safePos == null) {
-                        safePos = validPlayerSpawnLocation(world.getServer().getLevel(destination), searchLocation, range);
+                        safePos = validPlayerSpawnLocation(player.level.getServer().getLevel(destination), searchLocation, range);
                         range = range + 16; // If null, adjust the range and search again.
+
                         if (badConfig) {
                             // We couldn't find anything in the range defined in the config.
                             if (safePos != null) {
-                                player.sendSystemMessage(Component.literal("[§3Ultimate§bSpawn§f] §cERROR: Upper and lower bound of Y coordinate form an empty range! The player has been placed in related to initial spawn coordinates in Overworld."));
+                                player.sendMessage(new StringTextComponent("[§3Ultimate§bSpawn§f] §cERROR: Upper and lower bound of Y coordinate form an empty range! The player has been placed in related to initial spawn coordinates in Overworld."), player.getUUID());
                                 break;
                             }
                         } else {
@@ -136,21 +138,21 @@ public class SpawnHandler {
                     }
 
                     BlockPos finalSafePos = safePos;
-                    player.changeDimension(world.getServer().getLevel(destination), new ITeleporter() {
+                    player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
                         @Override
-                        public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
+                        public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
                             entity = repositionEntity.apply(false);
                             entity.teleportTo(finalSafePos.getX(), finalSafePos.getY(), finalSafePos.getZ());
                             return entity;
                         }
 
                         @Override
-                        public boolean playTeleportSound(ServerPlayer player, ServerLevel sourceWorld, ServerLevel destWorld) {
+                        public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
+                        {
                             return false;
                         }
                     });
-                }
-            }
+                }}
         }
     }
 }
