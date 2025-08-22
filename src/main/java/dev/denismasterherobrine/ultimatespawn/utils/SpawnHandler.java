@@ -41,9 +41,9 @@ public class SpawnHandler {
 
             if (useCoordinates) {
                 if (!fatal) {
-                    double x = Configuration.xEntry.get();
-                    double y = Configuration.yEntry.get();
-                    double z = Configuration.zEntry.get();
+                    int x = Configuration.xEntry.get().intValue();
+                    int y = Configuration.yEntry.get().intValue();
+                    int z = Configuration.zEntry.get().intValue();
 
                     if (!strictCoordinatesMode) {
                         BlockPos safePos = null;
@@ -102,10 +102,10 @@ public class SpawnHandler {
 
                     boolean badConfig = Configuration.yLowerBoundEntry.get() > Configuration.yUpperBoundEntry.get();
 
-                    double y;
+                    int y;
                     BlockPos searchLocation = location;
                     if (!badConfig) {
-                        y = (Configuration.yUpperBoundEntry.get() + Configuration.yLowerBoundEntry.get()) / 2; // Optimize the search by starting from center of position
+                        y = (int) ((Configuration.yUpperBoundEntry.get() + Configuration.yLowerBoundEntry.get()) / 2); // Optimize the search by starting from center of position
                         searchLocation = new BlockPos(location.getX(), y, location.getZ());
                     }
 
