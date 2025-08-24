@@ -25,7 +25,7 @@ public class Configuration {
     }
 
     private static void setupConfig(ForgeConfigSpec.Builder builder) {
-        builder.comment(" Welcome to the UltimateSpawn config.\n There you can define a preferred dimension and coordinates for player spawning. \n It is **preffered** to reload the game after changes,\n but it **may** work just fine each config saving to disk and adapt in real time.");
+        builder.comment(" Welcome to the UltimateSpawn config.\n There you can define a preffered dimension and coordinates for player spawning. \n It is **preffered** to reload the game after changes,\n but it **may** work just fine each config saving to disk and adapt in real time.");
         builder.push("General");
 
         dimensionEntry = builder
