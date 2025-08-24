@@ -25,7 +25,7 @@ public class Configuration {
     }
 
     private static void setupConfig(ForgeConfigSpec.Builder builder) {
-        builder.comment(" Welcome to the UltimateSpawn config.\n There you can define a preffered dimension and coordinates for player spawning. \n It is **preffered** to reload the game after changes,\n but it **may** work just fine each config saving to disk and adapt in real time.");
+        builder.comment(" Welcome to the UltimateSpawn config.\n There you can define a preferred dimension and coordinates for player spawning. \n It is **preffered** to reload the game after changes,\n but it **may** work just fine each config saving to disk and adapt in real time.");
         builder.push("General");
 
         dimensionEntry = builder
@@ -42,15 +42,15 @@ public class Configuration {
 
         yUpperBoundEntry = builder
                 .comment(" There you can define if UltimateSpawn should spawn players below this Y level. In rare cases may be shifted to speed up the search of the safe spawn spot. If this value is lower than lower bound, then it will be ignored and throw an error in chat.")
-                .defineInRange("yUpperBound", 140, -64D, 320D);
+                .defineInRange("yUpperBound", 140, -2048D, 2048D);
 
         yLowerBoundEntry = builder
                 .comment(" There you can define if UltimateSpawn should spawn players above this Y level. In rare cases may be shifted to speed up the search of the safe spawn spot. If this value is higher than higher bound, then it will be ignored and throw an error in chat.")
-                .defineInRange("yLowerBound", 60, -64D, 320D);
+                .defineInRange("yLowerBound", 60, -2048D, 2048D);
 
-        xEntry = builder.defineInRange("x", 0D, Double.MIN_VALUE, Double.MAX_VALUE);
-        yEntry = builder.defineInRange("y", 100D, Double.MIN_VALUE, Double.MAX_VALUE);
-        zEntry = builder.defineInRange("z", 0D, Double.MIN_VALUE, Double.MAX_VALUE);
+        xEntry = builder.defineInRange("x", 0D, -Double.MAX_VALUE, Double.MAX_VALUE);
+        yEntry = builder.defineInRange("y", 100D, -Double.MAX_VALUE, Double.MAX_VALUE);
+        zEntry = builder.defineInRange("z", 0D, -Double.MAX_VALUE, Double.MAX_VALUE);
 
         builder.pop();
     }
