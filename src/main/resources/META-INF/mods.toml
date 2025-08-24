@@ -34,7 +34,7 @@ authors="DenisMasterHerobrine" #optional
 description='''
 UltimateSpawn is a Minecraft mod allowing modpack developers or server owners to control players' spawn to spawn them in specific dimension and/or coordinates.'''
 # A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
-[[dependencies.examplemod]] #optional
+[[dependencies.ultimatespawn]] #optional
     # the modid of the dependency
     modId="forge" #mandatory
     # Does this dependency have to exist - if not, ordering below must be specified
@@ -46,7 +46,7 @@ UltimateSpawn is a Minecraft mod allowing modpack developers or server owners to
     # Side this dependency is applied on - BOTH, CLIENT or SERVER
     side="BOTH"
 # Here's another dependency
-[[dependencies.examplemod]]
+[[dependencies.ultimatespawn]]
     modId="minecraft"
     mandatory=true
 # This version range declares a minimum of the current minecraft version up to but not including the next major version

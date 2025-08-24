@@ -14,11 +14,13 @@ public class SpawnEvent {
         if (event.getEntity() != null) {
             ServerPlayer player = (ServerPlayer) event.getEntity();
 
-            if (player != null) {
-                int statCounter = player.getStats().getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME));
+            int statCounter = player.getStats().getValue(Stats.CUSTOM.get(Stats.LEAVE_GAME));
 
-                if (statCounter == 0) {
-                    SpawnHandler.handleSpawn(player);
+            if (statCounter == 0) {
+                if (player.getServer() != null) {
+                    player.getServer().execute(() -> SpawnHandler.handleSpawn(player));
+                } else {
+                    UltimateSpawn.LOGGER.warn("[UltimateSpawn] Player respawned without a server context, cannot handle spawn.");
                 }
             }
         }
@@ -29,9 +31,11 @@ public class SpawnEvent {
         if (event.getEntity() != null) {
             ServerPlayer player = (ServerPlayer) event.getEntity();
 
-            if (player != null) {
-                if (player.getRespawnPosition() == null) {
-                    SpawnHandler.handleSpawn(player);
+            if (player.getRespawnPosition() == null) {
+                if (player.getServer() != null) {
+                    player.getServer().execute(() -> SpawnHandler.handleSpawn(player));
+                } else {
+                    UltimateSpawn.LOGGER.warn("[UltimateSpawn] Player respawned without a server context, cannot handle spawn.");
                 }
             }
         }
