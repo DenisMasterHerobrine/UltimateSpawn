@@ -2,157 +2,167 @@ package dev.denismasterherobrine.ultimatespawn.utils;
 
 import dev.denismasterherobrine.ultimatespawn.UltimateSpawn;
 import dev.denismasterherobrine.ultimatespawn.configuration.Configuration;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
+import dev.denismasterherobrine.ultimatespawn.utils.teleport.SimpleTeleporter;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.RegistryKey;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
-import net.minecraftforge.common.util.ITeleporter;
+import net.minecraft.world.server.TicketType;
 
-import java.util.function.Function;
+import javax.annotation.Nullable;
 
-import static dev.denismasterherobrine.ultimatespawn.utils.ValidSpotChecks.validPlayerSpawnLocation;
+public final class SpawnHandler {
+    private SpawnHandler() {}
 
-public class SpawnHandler {
-    public static void handleSpawn(PlayerEntity player) {
-        if (player.level.getServer() == null) return;
+    public static void handleSpawn(ServerPlayerEntity player) {
+        if (player == null || player.getServer() == null) return;
 
-        BlockPos location = player.blockPosition();
+        final RegistryKey<World> destKey = parseDimensionKey(Configuration.dimensionEntry.get());
+        if (destKey == null) {
+            sendError(player, "[§3Ultimate§bSpawn§f] §cBad or empty dimension id: " + Configuration.dimensionEntry.get());
+            return;
+        }
 
-        String[] splitted = Configuration.dimensionEntry.get().split(":");
+        final ServerWorld destWorld = player.getServer().getLevel(destKey);
+        if (destWorld == null) {
+            sendError(player, "[§3Ultimate§bSpawn§f] §cDimension is not loaded or missing: " + destKey.location());
+            UltimateSpawn.LOGGER.error("[UltimateSpawn] Destination dimension not found: {}", destKey.location());
+            return;
+        }
 
-        boolean useCoordinates = Configuration.useCoordinatesEntry.get();
-        boolean strictCoordinatesMode = Configuration.strictCoordinatesModeEntry.get();
-
-        if (splitted.length == 2) {
-            RegistryKey<World> destination = RegistryKey.create(new ResourceLocation("minecraft", "dimension"), new ResourceLocation(splitted[0], splitted[1]));
-
-            boolean fatal = false;
-            if (player.level.getServer().getLevel(destination) == null) {
-                player.sendMessage(new StringTextComponent("[§3Ultimate§bSpawn§f] §4FATAL ERROR: The dimension " + splitted[0] + ":" + splitted[1] + " does not exist in this modpack instance!"), player.getUUID());
-                fatal = true;
+        final Target target = computeTargetPosition(destWorld);
+        if (!target.success) {
+            sendError(player, target.errorMessage != null ? target.errorMessage : "[§3Ultimate§bSpawn§f] §cFailed to compute target position");
+            if (target.errorLog != null) {
+                UltimateSpawn.LOGGER.error("[UltimateSpawn] {}", target.errorLog);
             }
+            return;
+        }
 
-            if (useCoordinates) {
-                if (!fatal) {
-                    double x = Configuration.xEntry.get();
-                    double y = Configuration.yEntry.get();
-                    double z = Configuration.zEntry.get();
+        if (player.level.dimension().equals(destKey)) {
+            final double tx = target.pos.getX() + 0.5D;
+            final double ty = target.pos.getY() + 0.5D;
+            final double tz = target.pos.getZ() + 0.5D;
 
-                    if (!strictCoordinatesMode) {
-                        BlockPos safePos = null;
-                        int range = 32;
-                        int it = 0;
-                        BlockPos searchLocation = new BlockPos(x, y, z);
+            destWorld.getChunkSource().addRegionTicket(
+                    TicketType.POST_TELEPORT, new ChunkPos(target.pos), 1, player.getId()
+            );
 
-                        while (safePos == null) {
-                            safePos = validPlayerSpawnLocation(player.level.getServer().getLevel(destination), searchLocation, range);
-                            range = range + 16; // If null, adjust the range and search again.
-                            if (safePos == null) {
-                                if (it > 3) {
-                                    UltimateSpawn.LOGGER.info("[UltimateSpawn] WARNING: No safe spots found in specified area in a large area! We're going to shift our safe position and search in the spawn chunks.");
-                                    safePos = location;
-                                    break;
-                                }
+            player.teleportTo(tx, ty, tz);
+            player.connection.teleport(tx, ty, tz, player.yRot, player.xRot);
+            player.fallDistance = 0.0F;
 
-                                it++;
-                            }
-                        }
+            UltimateSpawn.LOGGER.info("Teleported player {} within same dimension {} to {},{},{}",
+                    player.getName(), destKey.location(), tx, ty, tz);
+            return;
+        }
 
-                        BlockPos finalSafePos = safePos;
-                        player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
-                            @Override
-                            public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                                entity = repositionEntity.apply(false);
-                                entity.teleportTo(finalSafePos.getX(), finalSafePos.getY(), finalSafePos.getZ());
-                                return entity;
-                            }
+        final double tx = target.pos.getX() + 0.5D;
+        final double ty = target.pos.getY() + 0.5D;
+        final double tz = target.pos.getZ() + 0.5D;
 
-                            @Override
-                            public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
-                            {
-                                return false;
-                            }
-                        });
-                    } else {
-                        BlockPos finalPos = new BlockPos(x, y, z);
-                        player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
-                            @Override
-                            public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                                entity = repositionEntity.apply(false);
-                                entity.teleportTo(finalPos.getX(), finalPos.getY(), finalPos.getZ());
-                                return entity;
-                            }
+        destWorld.getChunkSource().addRegionTicket(
+                TicketType.POST_TELEPORT, new ChunkPos(target.pos), 1, player.getId()
+        );
 
-                            @Override
-                            public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
-                            {
-                                return false;
-                            }
-                        });
-                    }
-                }
-            }
-            else {
-                if (!fatal) {
-                    BlockPos safePos = null;
+        final float yaw = player.yRot;
+        final float pitch = player.xRot;
 
-                    boolean badConfig = Configuration.yLowerBoundEntry.get() > Configuration.yUpperBoundEntry.get();
+        player.changeDimension(destWorld, new SimpleTeleporter(tx, ty, tz, yaw, pitch));
+        player.fallDistance = 0.0F;
 
-                    double y;
-                    BlockPos searchLocation = location;
-                    if (!badConfig) {
-                        y = (Configuration.yUpperBoundEntry.get() + Configuration.yLowerBoundEntry.get()) / 2; // Optimize the search by starting from center of position
-                        searchLocation = new BlockPos(location.getX(), y, location.getZ());
-                    }
+        UltimateSpawn.LOGGER.info("Changed dimension for player {} to {} at {},{},{}",
+                player.getName(), destKey.location(), tx, ty, tz);
+    }
 
-                    int range = 32;
-                    int it = 0;
-                    while (safePos == null) {
-                        safePos = validPlayerSpawnLocation(player.level.getServer().getLevel(destination), searchLocation, range);
-                        range = range + 16; // If null, adjust the range and search again.
+    @Nullable
+    private static RegistryKey<World> parseDimensionKey(@Nullable String dim) {
+        if (dim == null || dim.isEmpty()) return null;
+        ResourceLocation id = ResourceLocation.tryParse(dim);
+        if (id == null) return null;
+        return RegistryKey.create(Registry.DIMENSION_REGISTRY, id);
+    }
 
-                        if (badConfig) {
-                            // We couldn't find anything in the range defined in the config.
-                            if (safePos != null) {
-                                player.sendMessage(new StringTextComponent("[§3Ultimate§bSpawn§f] §cERROR: Upper and lower bound of Y coordinate form an empty range! The player has been placed in related to initial spawn coordinates in Overworld."), player.getUUID());
-                                break;
-                            }
-                        } else {
-                            if (safePos != null) {
-                                if (it > 3) {
-                                    UltimateSpawn.LOGGER.info("[UltimateSpawn] WARNING: No safe spots found in specified area!!! We're going to shift our safe position.");
-                                    break;
-                                }
+    private static Target computeTargetPosition(ServerWorld destWorld) {
+        final boolean useCoords = Configuration.useCoordinatesEntry.get();
+        final boolean strict = Configuration.strictCoordinatesModeEntry.get();
 
-                                if (!(Configuration.yLowerBoundEntry.get() < safePos.getY() && safePos.getY() < Configuration.yUpperBoundEntry.get())) {
-                                    safePos = null; // We haven't found our position, reset it.
-                                    it++;
-                                }
-                            }
-                        }
-                    }
+        if (!useCoords) {
+            BlockPos spawn = destWorld.getSharedSpawnPos();
+            return Target.ok(spawn);
+        }
 
-                    BlockPos finalSafePos = safePos;
-                    player.changeDimension(player.level.getServer().getLevel(destination), new ITeleporter() {
-                        @Override
-                        public Entity placeEntity(Entity entity, ServerWorld currentWorld, ServerWorld destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                            entity = repositionEntity.apply(false);
-                            entity.teleportTo(finalSafePos.getX(), finalSafePos.getY(), finalSafePos.getZ());
-                            return entity;
-                        }
+        double x = Configuration.xEntry.get();
+        double y = Configuration.yEntry.get();
+        double z = Configuration.zEntry.get();
 
-                        @Override
-                        public boolean playTeleportSound(ServerPlayerEntity player, ServerWorld sourceWorld, ServerWorld destWorld)
-                        {
-                            return false;
-                        }
-                    });
-                }}
+        double yLowCfg = Configuration.yLowerBoundEntry.get();
+        double yHighCfg = Configuration.yUpperBoundEntry.get();
+
+        final int worldMinY = 0;
+        final int worldMaxY = destWorld.getMaxBuildHeight() - 1;
+
+        int yLow = (int) MathHelper.clamp(Math.floor(yLowCfg), worldMinY, worldMaxY);
+        int yHigh = (int) MathHelper.clamp(Math.floor(yHighCfg), worldMinY, worldMaxY);
+
+        if (yLow > yHigh) {
+            return Target.fail(
+                    "[§3Ultimate§bSpawn§f] §cyLowerBound is greater than yUpperBound, please check your config!",
+                    "yLowerBound > yUpperBound in config!; lower=" + yLow + " upper=" + yHigh
+            );
+        }
+
+        int yClamped = (int) MathHelper.clamp(Math.floor(y), worldMinY, worldMaxY);
+
+        if (strict) {
+            BlockPos pos = new BlockPos(MathHelper.floor(x), yClamped, MathHelper.floor(z));
+            return Target.ok(pos);
+        }
+
+        BlockPos probe = new BlockPos(MathHelper.floor(x), yClamped, MathHelper.floor(z));
+
+        int maxRadius = Math.max(0, Math.min(256, Math.abs(yHigh - yLow) + 96));
+
+        BlockPos safe = ValidSpotChecks.findSafeSpawn(destWorld, probe, maxRadius);
+        if (safe != null) {
+            return Target.ok(safe);
+        }
+
+        UltimateSpawn.LOGGER.warn("[UltimateSpawn] Safe spot not found near {},{},{} within radius {}. Fallback to world spawn.",
+                probe.getX(), probe.getY(), probe.getZ(), maxRadius);
+        return Target.ok(destWorld.getSharedSpawnPos());
+    }
+
+    private static void sendError(ServerPlayerEntity player, String msg) {
+        player.displayClientMessage(new StringTextComponent(msg), false);
+        UltimateSpawn.LOGGER.error("[UltimateSpawn] {}", msg);
+    }
+
+    private static final class Target {
+        final boolean success;
+        final BlockPos pos;
+        final String errorMessage;
+        final String errorLog;
+
+        private Target(boolean success, BlockPos pos, String errorMessage, String errorLog) {
+            this.success = success;
+            this.pos = pos;
+            this.errorMessage = errorMessage;
+            this.errorLog = errorLog;
+        }
+
+        static Target ok(BlockPos pos) {
+            return new Target(true, pos, null, null);
+        }
+
+        static Target fail(String errorMessage, String errorLog) {
+            return new Target(false, null, errorMessage, errorLog);
         }
     }
 }
