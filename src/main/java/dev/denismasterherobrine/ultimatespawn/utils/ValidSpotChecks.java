@@ -7,7 +7,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public class ValidSpotChecks {
     public static BlockPos findSafeSpawn(Level world, BlockPos center, int maxRadius) {
-        final int minY = 0;
+        final int minY = world.getMinBuildHeight();
         final int maxY = world.getMaxBuildHeight() - 1;
 
         for (int r = 0; r <= maxRadius; r += 2) {
