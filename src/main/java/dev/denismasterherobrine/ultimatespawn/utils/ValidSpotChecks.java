@@ -1,52 +1,125 @@
 package dev.denismasterherobrine.ultimatespawn.utils;
 
-// Code by TelephaticGhunt, utility method to find valid player spawn location.
-// Original: https://github.com/TelepathicGrunt/Bumblezone/blob/250ca9b8e1072bafeb616dc027208ae910cd1cef/src/main/java/com/telepathicgrunt/the_bumblezone/entities/EntityTeleportationBackend.java#L334
-// Ported to 1.18.2+
-
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.material.FluidState;
 
-public class ValidSpotChecks {
-    public static BlockPos validPlayerSpawnLocation(ServerLevel world, BlockPos position, int maximumRange) {
-        // Try to find 2 non-solid spaces around it that the player can spawn at
-        int radius;
-        int outerRadius;
-        int distanceSq;
-        BlockPos.MutableBlockPos currentPos = new BlockPos.MutableBlockPos(position.getX(), position.getY(), position.getZ());
+import javax.annotation.Nullable;
 
-        // Checks for 2 non-solid blocks with solid block below feet
-        // Checks outward from center position in both x, y, and z.
-        // The x2, y2, and z2 is so it checks at center of the range box instead of the corner.
-        for (int range = 0; range < maximumRange; range++) {
-            radius = range * range;
-            outerRadius = (range + 1) * (range + 1);
+public final class ValidSpotChecks {
+    private static final Heightmap.Types MOTION_HEIGTMAP = Heightmap.Types.MOTION_BLOCKING_NO_LEAVES;
 
-            for (int y = 0; y <= range * 2; y++) {
-                int y2 = y > range ? -(y - range) : y;
+    private ValidSpotChecks() {}
 
-                for (int x = 0; x <= range * 2; x++) {
-                    int x2 = x > range ? -(x - range) : x;
+    @Nullable
+    public static BlockPos validPlayerSpawnLocation(Level level, BlockPos center, int maxRadius) {
+        final int minY = level.getMinBuildHeight();
+        final int maxY = level.getMaxBuildHeight() - 1;
 
-                    for (int z = 0; z <= range * 2; z++) {
-                        int z2 = z > range ? -(z - range) : z;
+        BlockPos quick = evaluateColumn(level, center.getX(), center.getZ(), minY, maxY);
+        if (quick != null) return quick;
 
-                        distanceSq = x2 * x2 + z2 * z2 + y2 * y2;
-                        if (distanceSq >= radius && distanceSq < outerRadius) {
-                            currentPos.set(position.offset(x2, y2, z2));
+        final WorldBorder border = level.getWorldBorder();
+        final BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
 
-                            if (world.getBlockState(currentPos.below()).canOcclude()
-                                    && world.getBlockState(currentPos).isAir()
-                                    && world.getBlockState(currentPos.above()).isAir()) {
+        for (int r = 1; r <= maxRadius; r++) {
+            final int x0 = center.getX() - r;
+            final int x1 = center.getX() + r;
+            final int z0 = center.getZ() - r;
+            final int z1 = center.getZ() + r;
 
-                                // Valid space for player is found
-                                return currentPos;
-                            }
-                        }
+            for (int x = x0; x <= x1; x++) {
+                probe.set(x, minY, z0);
+                if (border.isWithinBounds(probe)) {
+                    BlockPos pos = evaluateColumn(level, x, z0, minY, maxY);
+                    if (pos != null) return pos;
+                }
+
+                if (z1 != z0) {
+                    probe.set(x, minY, z1);
+                    if (border.isWithinBounds(probe)) {
+                        BlockPos pos = evaluateColumn(level, x, z1, minY, maxY);
+                        if (pos != null) return pos;
                     }
                 }
             }
+
+            for (int z = z0 + 1; z <= z1 - 1; z++) {
+                probe.set(x0, minY, z);
+                if (border.isWithinBounds(probe)) {
+                    BlockPos pos = evaluateColumn(level, x0, z, minY, maxY);
+                    if (pos != null) return pos;
+                }
+
+                probe.set(x1, minY, z);
+                if (border.isWithinBounds(probe)) {
+                    BlockPos pos = evaluateColumn(level, x1, z, minY, maxY);
+                    if (pos != null) return pos;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private static BlockPos evaluateColumn(Level level, int x, int z, int minY, int maxY) {
+        int y = level.getHeight(MOTION_HEIGTMAP, x, z);
+        if (y < minY) y = minY;
+        if (y > maxY) y = maxY;
+
+        final BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos(x, y, z);
+        if (isSafeSpot(level, feet)) return feet.immutable();
+
+        final int vAdj = Math.max(0, 8);
+        for (int d = 1; d <= vAdj; d++) {
+            int yu = y + d;
+            if (yu <= maxY) {
+                feet.set(x, yu, z);
+                if (isSafeSpot(level, feet)) return feet.immutable();
+            }
+            int yd = y - d;
+            if (yd >= minY) {
+                feet.set(x, yd, z);
+                if (isSafeSpot(level, feet)) return feet.immutable();
+            }
         }
         return null;
+    }
+
+    private static boolean isSafeSpot(Level level, BlockPos.MutableBlockPos feet) {
+        final BlockPos below = feet.below();
+        final BlockState belowState = level.getBlockState(below);
+
+        if (!belowState.isFaceSturdy(level, below, Direction.UP)) return false;
+
+        if (!level.getFluidState(below).isEmpty()) return false;
+
+        if (!isReplaceable(level, feet)) return false;
+
+        feet.move(0, 1, 0);
+        boolean headOk = isReplaceable(level, feet.move(0, 1, 0));
+        feet.move(0, -1, 0);
+        return headOk;
+    }
+
+    private static boolean isReplaceable(Level level, BlockPos pos) {
+        final BlockState state = level.getBlockState(pos);
+
+        if (state.isAir()) return true;
+
+        final FluidState fluid = state.getFluidState();
+        if (!fluid.isEmpty()) return false;
+
+        if (state.getCollisionShape(level, pos).isEmpty()) return true;
+
+        if (state.is(Blocks.SNOW)) return true;
+
+        return false;
     }
 }
