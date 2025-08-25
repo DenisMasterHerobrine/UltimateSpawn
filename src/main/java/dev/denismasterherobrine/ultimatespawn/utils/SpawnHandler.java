@@ -107,7 +107,7 @@ public final class SpawnHandler {
         double yLowCfg = Configuration.yLowerBoundEntry.get();
         double yHighCfg = Configuration.yUpperBoundEntry.get();
 
-        final int worldMinY = 0;
+        final int worldMinY = destWorld.getMinBuildHeight();
         final int worldMaxY = destWorld.getMaxBuildHeight() - 1;
 
         int yLow = (int) Mth.clamp(Math.floor(yLowCfg), worldMinY, worldMaxY);
